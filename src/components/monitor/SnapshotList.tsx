@@ -35,6 +35,7 @@ function formatDate(dateStr: string): string {
 
 interface ISnapshotListProps {
   snapshots: ISnapshot[]
+  targetPrice?: number | null
   alertMinPrice?: number | null
   alertMaxPrice?: number | null
 }
@@ -50,7 +51,12 @@ function isInAlertRange(
   return aboveMin && belowMax
 }
 
-export function SnapshotList({ snapshots, alertMinPrice, alertMaxPrice }: ISnapshotListProps) {
+function isNearTargetPrice(price: number, targetPrice?: number | null): boolean {
+  if (targetPrice == null || targetPrice <= 0) return false
+  return price >= targetPrice * 0.9 && price <= targetPrice * 1.1
+}
+
+export function SnapshotList({ snapshots, targetPrice, alertMinPrice, alertMaxPrice }: ISnapshotListProps) {
   if (snapshots.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
@@ -77,8 +83,12 @@ export function SnapshotList({ snapshots, alertMinPrice, alertMaxPrice }: ISnaps
         <tbody className="divide-y">
           {snapshots.map((snapshot) => {
             const statusStyle = STATUS_VARIANT[snapshot.status]
+            const nearTarget = isNearTargetPrice(snapshot.price, targetPrice)
             return (
-              <tr key={snapshot.id} className="group">
+              <tr
+                key={snapshot.id}
+                className={`group ${nearTarget ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20' : 'border-l-4 border-l-transparent'}`}
+              >
                 <td className="py-2.5 pr-3 text-xs text-muted-foreground whitespace-nowrap">
                   {formatDate(snapshot.posted_at)}
                 </td>

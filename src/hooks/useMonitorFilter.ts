@@ -116,9 +116,11 @@ export function useMonitorFilter(
       const matchStatus = status === 'all' || s.status === status
       const matchMin = minPrice == null || s.price >= minPrice
       const matchMax = maxPrice == null || s.price <= maxPrice
-      return matchPlatform && matchStatus && matchMin && matchMax
+      const aboveAlertMin = alertMinPrice == null || s.price >= alertMinPrice
+      const belowAlertMax = alertMaxPrice == null || s.price <= alertMaxPrice
+      return matchPlatform && matchStatus && matchMin && matchMax && aboveAlertMin && belowAlertMax
     })
-  }, [validSnapshots, platform, status, minPrice, maxPrice])
+  }, [validSnapshots, platform, status, minPrice, maxPrice, alertMinPrice, alertMaxPrice])
 
   return {
     filtered,

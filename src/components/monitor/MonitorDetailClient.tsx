@@ -1,10 +1,12 @@
 'use client'
 import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, RefreshCw, X } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { deleteMonitor } from '@/actions/monitors'
 import { PriceChart } from './PriceChart'
 import { HotDealList } from './HotDealList'
 import { SnapshotList } from './SnapshotList'
@@ -36,7 +38,9 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
   const [isRefreshing, startRefresh] = useTransition()
   const [isPendingCrawl, startCrawl] = useTransition()
   const [isPendingAlert, startAlert] = useTransition()
+  const [isPendingDelete, startDelete] = useTransition()
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const {
     filtered,
@@ -101,6 +105,13 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
     router.push('/')
   }, [router])
 
+  const handleDelete = useCallback(() => {
+    startDelete(async () => {
+      await deleteMonitor(monitor.id)
+      router.push('/')
+    })
+  }, [monitor.id, router])
+
   const handleRefresh = useCallback(() => {
     startRefresh(async () => {
       await Promise.all([
@@ -159,6 +170,16 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="ml-1.5 hidden sm:inline">수집</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isPendingDelete}
+            aria-label="검색어 삭제"
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -239,6 +260,7 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
           </div>
           <SnapshotList
             snapshots={selectedDaySnapshots}
+            targetPrice={monitor.target_price}
             alertMinPrice={monitor.alert_min_price}
             alertMaxPrice={monitor.alert_price}
           />
@@ -271,10 +293,39 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
         />
         <SnapshotList
           snapshots={filtered}
+          targetPrice={monitor.target_price}
           alertMinPrice={monitor.alert_min_price}
           alertMaxPrice={monitor.alert_price}
         />
       </section>
+
+      {/* ── 삭제 확인 다이얼로그 ── */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>검색어 삭제</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{monitor.keyword}</span> 검색어와 수집된 모든 데이터가 삭제됩니다. 되돌릴 수 없습니다.
+          </p>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isPendingDelete}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isPendingDelete}
+            >
+              {isPendingDelete ? '삭제 중…' : '삭제'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
