@@ -5,10 +5,18 @@ import type { ISnapshot, ISnapshotInsert } from '@/types/database.types'
 
 export async function upsertSnapshots(snapshots: ISnapshotInsert[]): Promise<void> {
   if (!snapshots.length) return
+  // 같은 (monitor_id, url) 중복 제거 — 배치 내 중복 시 PostgreSQL upsert 에러 방지
+  const seen = new Set<string>()
+  const unique = snapshots.filter((s) => {
+    const key = `${s.monitor_id}::${s.url}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
   const supabase = await createClient()
   const { error } = await supabase
     .from('price_snapshots')
-    .upsert(snapshots, { onConflict: 'monitor_id,url' })
+    .upsert(unique, { onConflict: 'monitor_id,url' })
   if (error) throw new Error(error.message)
 }
 
