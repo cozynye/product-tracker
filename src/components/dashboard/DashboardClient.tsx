@@ -1,11 +1,10 @@
 'use client'
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MonitorCard } from '@/components/dashboard/MonitorCard'
 import { AddMonitorDialog } from '@/components/dashboard/AddMonitorDialog'
-import { deleteMonitor } from '@/actions/monitors'
 import type { IMonitor } from '@/types/database.types'
 
 interface IDashboardClientProps {
@@ -15,17 +14,6 @@ interface IDashboardClientProps {
 export function DashboardClient({ monitors }: IDashboardClientProps) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [, startTransition] = useTransition()
-
-  const handleDelete = useCallback(
-    (id: string) => {
-      startTransition(async () => {
-        await deleteMonitor(id)
-        router.refresh()
-      })
-    },
-    [router],
-  )
 
   const handleCreated = useCallback(() => {
     router.refresh()
@@ -53,7 +41,7 @@ export function DashboardClient({ monitors }: IDashboardClientProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {monitors.map((monitor) => (
-            <MonitorCard key={monitor.id} monitor={monitor} onDelete={handleDelete} />
+            <MonitorCard key={monitor.id} monitor={monitor} />
           ))}
         </div>
       )}

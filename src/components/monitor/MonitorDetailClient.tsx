@@ -1,9 +1,10 @@
 'use client'
-import { useCallback, useTransition } from 'react'
+import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { ArrowLeft, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { PriceChart } from './PriceChart'
 import { HotDealList } from './HotDealList'
 import { SnapshotList } from './SnapshotList'
@@ -12,14 +13,17 @@ import { PriceRangeFilter } from './PriceRangeFilter'
 import { ExcludedKeywordInput } from './ExcludedKeywordInput'
 import { ManualEntryDialog } from './ManualEntryDialog'
 import { MonitorPriceSettings } from './MonitorPriceSettings'
+import { updateMonitor } from '@/actions/monitors'
 import { useMonitorFilter } from '@/hooks/useMonitorFilter'
 import type { ChartRange } from '@/hooks/useMonitorFilter'
 import type { IMonitor, ISnapshot } from '@/types/database.types'
 
 const CHART_RANGE_OPTIONS: { value: ChartRange; label: string }[] = [
-  { value: 1, label: '1일' },
-  { value: 7, label: '1주' },
+  { value: 7,  label: '1주' },
+  { value: 21, label: '3주' },
   { value: 30, label: '1달' },
+  { value: 60, label: '2달' },
+  { value: 90, label: '3달' },
 ]
 
 interface IMonitorDetailClientProps {
@@ -30,9 +34,13 @@ interface IMonitorDetailClientProps {
 export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetailClientProps) {
   const router = useRouter()
   const [isRefreshing, startRefresh] = useTransition()
+  const [isPendingCrawl, startCrawl] = useTransition()
+  const [isPendingAlert, startAlert] = useTransition()
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const {
     filtered,
+    validSnapshots,
     hotDeals,
     chartData,
     currentAvgPrice,
@@ -52,7 +60,42 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
     monitor.excluded_keywords,
     monitor.min_price,
     monitor.max_price,
+    monitor.alert_min_price ?? null,
+    monitor.alert_price ?? null,
   )
+
+  const selectedDaySnapshots = useMemo(() => {
+    if (!selectedDate) return []
+    const alertMinPrice = monitor.alert_min_price
+    const alertMaxPrice = monitor.alert_price
+    return validSnapshots.filter((s) => {
+      const d = new Date(s.posted_at)
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const matchDate = `${mm}/${dd}` === selectedDate
+      const aboveAlertMin = alertMinPrice == null || s.price >= alertMinPrice
+      const belowAlertMax = alertMaxPrice == null || s.price <= alertMaxPrice
+      return matchDate && aboveAlertMin && belowAlertMax
+    })
+  }, [selectedDate, validSnapshots, monitor.alert_min_price, monitor.alert_price])
+
+  const handleChartClick = useCallback((date: string | null) => {
+    setSelectedDate((prev) => (prev === date ? null : date))
+  }, [])
+
+  const handleCrawlingToggle = useCallback((checked: boolean) => {
+    startCrawl(async () => {
+      await updateMonitor(monitor.id, { is_crawling_enabled: checked })
+      router.refresh()
+    })
+  }, [monitor.id, router])
+
+  const handleAlertToggle = useCallback((checked: boolean) => {
+    startAlert(async () => {
+      await updateMonitor(monitor.id, { is_alert_enabled: checked })
+      router.refresh()
+    })
+  }, [monitor.id, router])
 
   const handleBack = useCallback(() => {
     router.push('/')
@@ -87,17 +130,35 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
           <h1 className="text-lg font-bold truncate">{monitor.keyword}</h1>
           <Badge variant="secondary" className="shrink-0">{monitor.category}</Badge>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5" title="자동 크롤링">
+            <span className="text-xs text-muted-foreground hidden sm:inline">크롤링</span>
+            <Switch
+              checked={monitor.is_crawling_enabled}
+              onCheckedChange={handleCrawlingToggle}
+              disabled={isPendingCrawl}
+              aria-label="자동 크롤링 활성화"
+            />
+          </div>
+          <div className="flex items-center gap-1.5" title="알림">
+            <span className="text-xs text-muted-foreground hidden sm:inline">알림</span>
+            <Switch
+              checked={monitor.is_alert_enabled}
+              onCheckedChange={handleAlertToggle}
+              disabled={isPendingAlert}
+              aria-label="알림 활성화"
+            />
+          </div>
           <ManualEntryDialog monitorId={monitor.id} />
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            aria-label="강제 새로고침"
+            aria-label="수동 수집"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="ml-1.5 hidden sm:inline">새로고침</span>
+            <span className="ml-1.5 hidden sm:inline">수집</span>
           </Button>
         </div>
       </div>
@@ -157,8 +218,32 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
           targetPrice={monitor.target_price}
           alertMinPrice={monitor.alert_min_price}
           alertMaxPrice={monitor.alert_price}
+          onPointClick={handleChartClick}
         />
       </section>
+
+      {/* ── 선택 날짜 매물 ── */}
+      {selectedDate && selectedDaySnapshots.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-sm font-medium">{selectedDate} 매물</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => setSelectedDate(null)}
+              aria-label="날짜 선택 해제"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+          <SnapshotList
+            snapshots={selectedDaySnapshots}
+            alertMinPrice={monitor.alert_min_price}
+            alertMaxPrice={monitor.alert_price}
+          />
+        </section>
+      )}
 
       {/* ── 핫딜 ── */}
       {hotDeals.length > 0 && (

@@ -44,7 +44,7 @@ export async function deleteMonitor(id: string): Promise<void> {
 
 export async function updateMonitor(
   id: string,
-  data: Partial<Pick<IMonitor, 'target_price' | 'alert_min_price' | 'alert_price' | 'min_price' | 'max_price' | 'excluded_keywords'>>,
+  data: Partial<Pick<IMonitor, 'target_price' | 'alert_min_price' | 'alert_price' | 'min_price' | 'max_price' | 'excluded_keywords' | 'is_crawling_enabled' | 'is_alert_enabled'>>,
 ): Promise<void> {
   const supabase = await createClient()
   const { error } = await supabase

@@ -18,6 +18,12 @@ interface IPriceChartProps {
   targetPrice?: number | null
   alertMinPrice?: number | null
   alertMaxPrice?: number | null
+  onPointClick?: (date: string | null) => void
+}
+
+const LABEL_MAP: Record<string, string> = {
+  minPrice: '최저가',
+  avgPrice: '평균가',
 }
 
 function formatYAxis(value: number): string {
@@ -40,14 +46,14 @@ function CustomTooltip({
       <p className="font-medium mb-1">{label}</p>
       {payload.map((entry) => (
         <p key={entry.name} style={{ color: entry.color }}>
-          {entry.name}: {entry.value.toLocaleString()}원
+          {LABEL_MAP[entry.name] ?? entry.name}: {entry.value.toLocaleString()}원
         </p>
       ))}
     </div>
   )
 }
 
-export function PriceChart({ data, targetPrice, alertMinPrice, alertMaxPrice }: IPriceChartProps) {
+export function PriceChart({ data, targetPrice, alertMinPrice, alertMaxPrice, onPointClick }: IPriceChartProps) {
   if (!data.length) {
     return (
       <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed">
@@ -58,7 +64,12 @@ export function PriceChart({ data, targetPrice, alertMinPrice, alertMaxPrice }: 
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+      <LineChart
+        data={data}
+        margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
+        onClick={(payload) => onPointClick?.(payload?.activeLabel != null ? String(payload.activeLabel) : null)}
+        style={{ cursor: onPointClick ? 'pointer' : 'default' }}
+      >
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
         <YAxis

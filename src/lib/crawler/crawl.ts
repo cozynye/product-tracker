@@ -1,7 +1,7 @@
 import { crawlBunjang } from './bunjang'
 import { crawlJoonggonara } from './joonggonara'
 import { isCacheValid, applyExcludedKeywords } from './utils'
-import { upsertSnapshots, updateLastCrawledAt } from '@/actions/snapshots'
+import { upsertSnapshots, updateLastCrawledAt, deleteOldSnapshots } from '@/actions/snapshots'
 import type { IMonitor, ISnapshotInsert } from '@/types/database.types'
 
 export interface CrawlResult {
@@ -44,6 +44,7 @@ export async function crawlMonitor(
   )
 
   await upsertSnapshots(filtered)
+  await deleteOldSnapshots(monitor.id)
   await updateLastCrawledAt(monitor.id)
 
   return {

@@ -12,15 +12,30 @@ export async function upsertSnapshots(snapshots: ISnapshotInsert[]): Promise<voi
   if (error) throw new Error(error.message)
 }
 
+const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000
+
 export async function getSnapshots(monitorId: string): Promise<ISnapshot[]> {
   const supabase = await createClient()
+  const cutoff = new Date(Date.now() - THREE_MONTHS_MS).toISOString()
   const { data, error } = await supabase
     .from('price_snapshots')
     .select('*')
     .eq('monitor_id', monitorId)
+    .gte('posted_at', cutoff)
     .order('posted_at', { ascending: false })
   if (error) throw new Error(error.message)
   return (data ?? []) as ISnapshot[]
+}
+
+export async function deleteOldSnapshots(monitorId: string): Promise<void> {
+  const supabase = await createClient()
+  const cutoff = new Date(Date.now() - THREE_MONTHS_MS).toISOString()
+  const { error } = await supabase
+    .from('price_snapshots')
+    .delete()
+    .eq('monitor_id', monitorId)
+    .lt('posted_at', cutoff)
+  if (error) throw new Error(error.message)
 }
 
 export async function updateLastCrawledAt(monitorId: string): Promise<void> {

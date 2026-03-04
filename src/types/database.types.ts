@@ -16,6 +16,8 @@ export type Database = {
           max_price: number | null
           excluded_keywords: string[]
           last_crawled_at: string | null
+          is_crawling_enabled: boolean
+          is_alert_enabled: boolean
           created_at: string
         }
         Insert: {
@@ -29,6 +31,8 @@ export type Database = {
           max_price?: number | null
           excluded_keywords?: string[]
           last_crawled_at?: string | null
+          is_crawling_enabled?: boolean
+          is_alert_enabled?: boolean
           created_at?: string
         }
         Update: {
@@ -42,6 +46,8 @@ export type Database = {
           max_price?: number | null
           excluded_keywords?: string[]
           last_crawled_at?: string | null
+          is_crawling_enabled?: boolean
+          is_alert_enabled?: boolean
           created_at?: string
         }
         Relationships: []
@@ -118,6 +124,8 @@ export interface IMonitor {
   max_price: number | null
   excluded_keywords: string[]
   last_crawled_at: string | null
+  is_crawling_enabled: boolean
+  is_alert_enabled: boolean
   created_at: string
 }
 

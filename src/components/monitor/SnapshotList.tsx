@@ -67,51 +67,28 @@ export function SnapshotList({ snapshots, alertMinPrice, alertMaxPrice }: ISnaps
       <table className="w-full text-sm" aria-label="매물 목록">
         <thead className="sticky top-0 bg-background z-10">
           <tr className="border-b text-left text-xs text-muted-foreground">
-            <th className="pb-2 pr-3 font-medium">플랫폼</th>
-            <th className="pb-2 pr-3 font-medium">제목</th>
+            <th className="pb-2 pr-3 font-medium">날짜</th>
             <th className="pb-2 pr-3 font-medium text-right">가격</th>
+            <th className="pb-2 pr-3 font-medium">플랫폼</th>
             <th className="pb-2 pr-3 font-medium">상태</th>
-            <th className="pb-2 font-medium">날짜</th>
+            <th className="pb-2 font-medium">제목</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {snapshots.map((snapshot) => {
             const statusStyle = STATUS_VARIANT[snapshot.status]
-            const inAlert = isInAlertRange(snapshot.price, alertMinPrice, alertMaxPrice)
             return (
-              <tr
-                key={snapshot.id}
-                className={`group ${inAlert ? 'bg-amber-50/60 dark:bg-amber-950/10' : ''}`}
-              >
+              <tr key={snapshot.id} className="group">
+                <td className="py-2.5 pr-3 text-xs text-muted-foreground whitespace-nowrap">
+                  {formatDate(snapshot.posted_at)}
+                </td>
+                <td className="py-2.5 pr-3 text-right font-medium tabular-nums whitespace-nowrap">
+                  {snapshot.price.toLocaleString()}원
+                </td>
                 <td className="py-2.5 pr-3">
                   <Badge variant="outline" className="text-xs whitespace-nowrap">
                     {PLATFORM_LABEL[snapshot.platform]}
                   </Badge>
-                </td>
-                <td className="py-2.5 pr-3 max-w-[240px] sm:max-w-[400px]">
-                  <div className="flex items-center gap-1.5">
-                    {inAlert && (
-                      <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 px-1.5 py-0.5 text-[10px] font-medium leading-none">
-                        알림
-                      </span>
-                    )}
-                    <a
-                      href={snapshot.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 truncate text-foreground hover:text-blue-600 transition-colors"
-                      aria-label={`${snapshot.title} 매물 바로가기`}
-                    >
-                      <span className="truncate">{snapshot.title}</span>
-                      <ExternalLink
-                        className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        aria-hidden="true"
-                      />
-                    </a>
-                  </div>
-                </td>
-                <td className="py-2.5 pr-3 text-right font-medium tabular-nums whitespace-nowrap">
-                  {snapshot.price.toLocaleString()}원
                 </td>
                 <td className="py-2.5 pr-3">
                   <span
@@ -120,8 +97,20 @@ export function SnapshotList({ snapshots, alertMinPrice, alertMaxPrice }: ISnaps
                     {statusStyle.label}
                   </span>
                 </td>
-                <td className="py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                  {formatDate(snapshot.posted_at)}
+                <td className="py-2.5 max-w-[180px] sm:max-w-[360px]">
+                  <a
+                    href={snapshot.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 truncate text-foreground hover:text-blue-600 transition-colors"
+                    aria-label={`${snapshot.title} 매물 바로가기`}
+                  >
+                    <span className="truncate">{snapshot.title}</span>
+                    <ExternalLink
+                      className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-hidden="true"
+                    />
+                  </a>
                 </td>
               </tr>
             )
