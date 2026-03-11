@@ -12,8 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createMonitor } from '@/actions/monitors'
-
-const CATEGORIES = ['시계', '슈프림'] as const
+import { CATEGORIES } from '@/lib/categories'
 
 interface IAddMonitorDialogProps {
   open: boolean

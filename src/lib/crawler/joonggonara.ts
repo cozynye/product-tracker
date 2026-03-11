@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import { sendSlackError } from '@/lib/notifications/slack'
 import type { ISnapshotInsert } from '@/types/database.types'
 
 interface JoongnaItem {
@@ -35,10 +36,14 @@ const STATUS_MAP: Record<number, ISnapshotInsert['status']> = {
   2: '거래완료',
 }
 
-function parseNextData(html: string): JoongnaItem[] {
+type ParseResult =
+  | { ok: true; items: JoongnaItem[] }
+  | { ok: false; reason: 'no_script' | 'no_items' }
+
+function parseNextData(html: string): ParseResult {
   const $ = cheerio.load(html)
   const scriptContent = $('#__NEXT_DATA__').html()
-  if (!scriptContent) return []
+  if (!scriptContent) return { ok: false, reason: 'no_script' }
 
   const nextData: NextData = JSON.parse(scriptContent)
   const queries = nextData?.props?.pageProps?.dehydratedState?.queries ?? []
@@ -46,10 +51,10 @@ function parseNextData(html: string): JoongnaItem[] {
   for (const query of queries) {
     const items = query?.state?.data?.data?.items
     if (Array.isArray(items) && items.length > 0) {
-      return items
+      return { ok: true, items }
     }
   }
-  return []
+  return { ok: false, reason: 'no_items' }
 }
 
 export async function crawlJoonggonara(
@@ -70,8 +75,18 @@ export async function crawlJoonggonara(
     timeout: 15_000,
   })
 
-  const items = parseNextData(html)
-  if (!items.length) return []
+  const result = parseNextData(html)
+
+  if (!result.ok) {
+    const msg = result.reason === 'no_script'
+      ? '중고나라: __NEXT_DATA__ 스크립트 없음 — 페이지 구조 변경 가능성'
+      : '중고나라: items 파싱 실패 — dehydratedState 구조 변경 가능성'
+    console.error(`[joonggonara] ${msg}`)
+    await sendSlackError(`중고나라 크롤러 (${keyword})`, msg)
+    return []
+  }
+
+  const { items } = result
 
   return items.map((item) => ({
     monitor_id: monitorId,

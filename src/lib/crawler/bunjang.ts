@@ -21,38 +21,57 @@ const STATUS_MAP: Record<string, ISnapshotInsert['status']> = {
   '3': '거래완료',
 }
 
-export async function crawlBunjang(
+const MAX_PAGES = 5 // 최대 500건
+const PAGE_SIZE = 100
+
+async function fetchBunjangPage(
   keyword: string,
-  monitorId: string,
-): Promise<ISnapshotInsert[]> {
+  page: number,
+): Promise<BunjangItem[]> {
   const params = new URLSearchParams({
     q: keyword,
     order: 'score',
-    page: '0',
-    n: '100',
+    page: String(page),
+    n: String(PAGE_SIZE),
     stat_device: 'w',
     req_ref: 'search',
     version: '5',
     request_id: Date.now().toString(),
   })
 
-  const url = `https://api.bunjang.co.kr/api/1/find_v2.json?${params}`
-
-  const { data } = await axios.get<BunjangApiResponse>(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      Accept: 'application/json, text/plain, */*',
-      'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-      Origin: 'https://m.bunjang.co.kr',
-      Referer: `https://m.bunjang.co.kr/search/products?q=${encodeURIComponent(keyword)}`,
+  const { data } = await axios.get<BunjangApiResponse>(
+    `https://api.bunjang.co.kr/api/1/find_v2.json?${params}`,
+    {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        Origin: 'https://m.bunjang.co.kr',
+        Referer: `https://m.bunjang.co.kr/search/products?q=${encodeURIComponent(keyword)}`,
+      },
+      timeout: 15_000,
     },
-    timeout: 15_000,
-  })
+  )
 
-  if (!data?.list?.length) return []
+  return data?.list ?? []
+}
 
-  return data.list
+export async function crawlBunjang(
+  keyword: string,
+  monitorId: string,
+): Promise<ISnapshotInsert[]> {
+  const allItems: BunjangItem[] = []
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const items = await fetchBunjangPage(keyword, page)
+    if (!items.length) break
+    allItems.push(...items)
+    // 마지막 페이지 도달 시 조기 종료
+    if (items.length < PAGE_SIZE) break
+  }
+
+  return allItems
     .filter((item) => item.type === 'PRODUCT')
     .map((item) => ({
       monitor_id: monitorId,

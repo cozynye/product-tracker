@@ -12,9 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { updateMonitor } from '@/actions/monitors'
+import { CATEGORIES } from '@/lib/categories'
 import type { IMonitor } from '@/types/database.types'
-
-const CATEGORIES = ['시계', '슈프림'] as const
 
 interface IEditMonitorDialogProps {
   monitor: IMonitor
