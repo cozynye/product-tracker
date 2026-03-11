@@ -1,8 +1,10 @@
 'use client'
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { Pencil } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { IMonitor } from '@/types/database.types'
 
 function formatTimeAgo(dateString: string | null): string {
@@ -23,14 +25,20 @@ function formatAlertPrice(min: number | null, max: number | null): string {
 
 interface IMonitorCardProps {
   monitor: IMonitor
+  onEdit: (monitor: IMonitor) => void
 }
 
-export function MonitorCard({ monitor }: IMonitorCardProps) {
+export function MonitorCard({ monitor, onEdit }: IMonitorCardProps) {
   const router = useRouter()
 
   const handleCardClick = useCallback(() => {
     router.push(`/monitor/${monitor.id}`)
   }, [router, monitor.id])
+
+  const handleEditClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onEdit(monitor)
+  }, [onEdit, monitor])
 
   return (
     <Card
@@ -42,7 +50,18 @@ export function MonitorCard({ monitor }: IMonitorCardProps) {
       aria-label={`${monitor.keyword} 모니터 상세 보기`}
     >
       <CardHeader className="pb-1">
-        <Badge variant="secondary" className="w-fit">{monitor.category}</Badge>
+        <div className="flex items-start justify-between gap-2">
+          <Badge variant="secondary" className="w-fit">{monitor.category}</Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={handleEditClick}
+            aria-label={`${monitor.keyword} 수정`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        </div>
         <h3 className="font-semibold text-base leading-tight">{monitor.keyword}</h3>
       </CardHeader>
       <CardContent>

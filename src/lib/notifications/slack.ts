@@ -42,3 +42,15 @@ export async function sendSlackAlert(items: ISlackAlertItem[]): Promise<void> {
 
   console.log(`[slack] 알림 ${items.length}건 전송 완료`)
 }
+
+export async function sendSlackError(keyword: string, errorMessage: string): Promise<void> {
+  if (!SLACK_WEBHOOK_URL) return
+
+  const text = `🚨 *[크롤링 실패] ${keyword}*\n\`${errorMessage}\``
+
+  await fetch(SLACK_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  }).catch((e) => console.error('[slack] 에러 알림 전송 실패:', e))
+}

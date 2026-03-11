@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { crawlMonitor } from '@/lib/crawler/crawl'
+import { sendSlackError } from '@/lib/notifications/slack'
 import type { IMonitor } from '@/types/database.types'
 
 export async function GET(request: Request) {
@@ -32,7 +33,9 @@ export async function GET(request: Request) {
         results.crawled++
       }
     } catch (e) {
-      console.error(`[cron] monitor ${monitor.id} failed:`, e instanceof Error ? e.message : e)
+      const message = e instanceof Error ? e.message : String(e)
+      console.error(`[cron] monitor ${monitor.id} failed:`, message)
+      await sendSlackError(monitor.keyword, message)
       results.errors++
     }
   }

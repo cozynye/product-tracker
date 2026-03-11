@@ -1,11 +1,12 @@
 'use client'
 import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, RefreshCw, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Bell, RefreshCw, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { deleteMonitor, crawlMonitorAction } from '@/actions/monitors'
 import { PriceChart } from './PriceChart'
 import { HotDealList } from './HotDealList'
@@ -68,6 +69,13 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
     monitor.alert_price ?? null,
   )
 
+  const notifiedSnapshots = useMemo(
+    () => initialSnapshots
+      .filter((s) => s.notified_at != null)
+      .sort((a, b) => new Date(b.notified_at!).getTime() - new Date(a.notified_at!).getTime()),
+    [initialSnapshots],
+  )
+
   const selectedDaySnapshots = useMemo(() => {
     if (!selectedDate) return []
     const alertMinPrice = monitor.alert_min_price
@@ -114,8 +122,14 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
 
   const handleRefresh = useCallback(() => {
     startRefresh(async () => {
-      await crawlMonitorAction(monitor.id)
-      router.refresh()
+      try {
+        const { bunjangCount, joonggnaraCount } = await crawlMonitorAction(monitor.id)
+        const total = bunjangCount + joonggnaraCount
+        toast.success(`수집 완료 — 총 ${total}건 (번개장터 ${bunjangCount} / 중고나라 ${joonggnaraCount})`)
+        router.refresh()
+      } catch {
+        toast.error('수집 중 오류가 발생했습니다.')
+      }
     })
   }, [monitor.id, router])
 
@@ -260,6 +274,39 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
       {hotDeals.length > 0 && (
         <section>
           <HotDealList deals={hotDeals} />
+        </section>
+      )}
+
+      {/* ── 알림 발송 이력 ── */}
+      {notifiedSnapshots.length > 0 && (
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Bell className="h-3.5 w-3.5" />
+            알림 발송 이력 ({notifiedSnapshots.length}건)
+          </h2>
+          <div className="rounded-lg border divide-y text-sm">
+            {notifiedSnapshots.map((s) => (
+              <div key={s.id} className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="min-w-0">
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium hover:underline truncate block"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {s.title}
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    발송: {new Date(s.notified_at!).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <span className="font-semibold tabular-nums shrink-0">
+                  {s.price.toLocaleString()}원
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
