@@ -9,6 +9,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const force = new URL(request.url).searchParams.get('force') === 'true'
+
   const supabase = await createClient()
   const { data: monitors, error } = await supabase
     .from('user_monitors')
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
 
   for (const monitor of (monitors ?? []) as IMonitor[]) {
     try {
-      const result = await crawlMonitor(monitor, 'all', false)
+      const result = await crawlMonitor(monitor, 'all', force)
       if (result.cached) {
         results.skipped++
       } else {

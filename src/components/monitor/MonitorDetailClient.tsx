@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { deleteMonitor } from '@/actions/monitors'
+import { deleteMonitor, crawlMonitorAction } from '@/actions/monitors'
 import { PriceChart } from './PriceChart'
 import { HotDealList } from './HotDealList'
 import { SnapshotList } from './SnapshotList'
@@ -114,18 +114,7 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
 
   const handleRefresh = useCallback(() => {
     startRefresh(async () => {
-      await Promise.all([
-        fetch(`/api/crawl/bunjang`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ monitorId: monitor.id, force: true }),
-        }),
-        fetch(`/api/crawl/joonggonara`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ monitorId: monitor.id, force: true }),
-        }),
-      ])
+      await crawlMonitorAction(monitor.id)
       router.refresh()
     })
   }, [monitor.id, router])

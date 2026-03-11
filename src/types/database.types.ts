@@ -63,6 +63,7 @@ export type Database = {
           url: string
           posted_at: string
           created_at: string
+          notified_at: string | null
         }
         Insert: {
           id?: string
@@ -74,6 +75,7 @@ export type Database = {
           url: string
           posted_at: string
           created_at?: string
+          notified_at?: string | null
         }
         Update: {
           id?: string
@@ -85,6 +87,7 @@ export type Database = {
           url?: string
           posted_at?: string
           created_at?: string
+          notified_at?: string | null
         }
         Relationships: [
           {
@@ -139,6 +142,7 @@ export interface ISnapshot {
   url: string
   posted_at: string
   created_at: string
+  notified_at: string | null
 }
 
 export interface IHotDeal extends ISnapshot {
@@ -151,6 +155,8 @@ export interface ICreateMonitorInput {
   category: string
   target_price?: number
   alert_price?: number
+  min_price?: number
+  max_price?: number
   excluded_keywords?: string[]
 }
 

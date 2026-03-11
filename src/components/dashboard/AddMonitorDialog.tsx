@@ -27,6 +27,8 @@ export function AddMonitorDialog({ open, onOpenChange, onCreated }: IAddMonitorD
   const [category, setCategory] = useState('')
   const [targetPrice, setTargetPrice] = useState('')
   const [alertPrice, setAlertPrice] = useState('')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
   const [excludedKeywords, setExcludedKeywords] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -43,6 +45,8 @@ export function AddMonitorDialog({ open, onOpenChange, onCreated }: IAddMonitorD
     setCategory('')
     setTargetPrice('')
     setAlertPrice('')
+    setMinPrice('')
+    setMaxPrice('')
     setExcludedKeywords('')
     setErrors({})
   }
@@ -57,6 +61,8 @@ export function AddMonitorDialog({ open, onOpenChange, onCreated }: IAddMonitorD
         category,
         target_price: targetPrice ? Number(targetPrice) : undefined,
         alert_price: alertPrice ? Number(alertPrice) : undefined,
+        min_price: minPrice ? Number(minPrice) : undefined,
+        max_price: maxPrice ? Number(maxPrice) : undefined,
         excluded_keywords: excludedKeywords
           ? excludedKeywords.split(',').map((kw) => kw.trim()).filter(Boolean)
           : [],
@@ -137,6 +143,29 @@ export function AddMonitorDialog({ open, onOpenChange, onCreated }: IAddMonitorD
                 min={0}
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>가격 범위 (원) — 알림 발송 조건</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                type="number"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                placeholder="최솟값 (예) 500000"
+                min={0}
+              />
+              <Input
+                type="number"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                placeholder="최댓값 (예) 1200000"
+                min={0}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              알림가 이하이면서 이 범위 안에 있을 때만 슬랙 알림 발송
+            </p>
           </div>
 
           <div className="space-y-1.5">
