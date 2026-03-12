@@ -1,11 +1,12 @@
 'use client'
 import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Bell, RefreshCw, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Bell, ChevronDown, ChevronRight, RefreshCw, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { toast } from 'sonner'
 import { deleteMonitor, crawlMonitorAction } from '@/actions/monitors'
 import { PriceChart } from './PriceChart'
@@ -42,6 +43,7 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
   const [isPendingDelete, startDelete] = useTransition()
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [alertHistoryOpen, setAlertHistoryOpen] = useState(false)
 
   const {
     filtered,
@@ -277,36 +279,47 @@ export function MonitorDetailClient({ monitor, initialSnapshots }: IMonitorDetai
         </section>
       )}
 
-      {/* ── 알림 발송 이력 ── */}
+      {/* ── 알림 발송 이력 (기본 닫힘) ── */}
       {notifiedSnapshots.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-            <Bell className="h-3.5 w-3.5" />
-            알림 발송 이력 ({notifiedSnapshots.length}건)
-          </h2>
-          <div className="rounded-lg border divide-y text-sm">
-            {notifiedSnapshots.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-3 py-2 gap-3">
-                <div className="min-w-0">
-                  <a
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium hover:underline truncate block"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {s.title}
-                  </a>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    발송: {new Date(s.notified_at!).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <span className="font-semibold tabular-nums shrink-0">
-                  {s.price.toLocaleString()}원
-                </span>
+          <Collapsible open={alertHistoryOpen} onOpenChange={setAlertHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="flex w-full items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Bell className="h-3.5 w-3.5" />
+                알림 발송 이력
+                <Badge variant="secondary" className="text-xs ml-1">{notifiedSnapshots.length}건</Badge>
+                {alertHistoryOpen
+                  ? <ChevronDown className="h-3.5 w-3.5 ml-auto" />
+                  : <ChevronRight className="h-3.5 w-3.5 ml-auto" />
+                }
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="rounded-lg border divide-y text-sm">
+                {notifiedSnapshots.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between px-3 py-2 gap-3">
+                    <div className="min-w-0">
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium hover:underline truncate block"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {s.title}
+                      </a>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        발송: {new Date(s.notified_at!).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <span className="font-semibold tabular-nums shrink-0">
+                      {s.price.toLocaleString()}원
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </section>
       )}
 

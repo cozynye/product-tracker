@@ -11,26 +11,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { updateMonitor } from '@/actions/monitors'
+import { createMonitor, updateMonitor } from '@/actions/monitors'
 import { CATEGORIES } from '@/lib/categories'
 import type { IMonitor } from '@/types/database.types'
 
-interface IEditMonitorDialogProps {
-  monitor: IMonitor
+interface IMonitorFormDialogProps {
+  mode: 'add' | 'edit'
   open: boolean
   onOpenChange: (open: boolean) => void
-  onUpdated: () => void
+  onDone: () => void
+  initialData?: IMonitor
 }
 
-export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: IEditMonitorDialogProps) {
+function toStr(v: number | null | undefined): string {
+  return v != null ? String(v) : ''
+}
+
+export function MonitorFormDialog({
+  mode,
+  open,
+  onOpenChange,
+  onDone,
+  initialData,
+}: IMonitorFormDialogProps) {
   const [isPending, startTransition] = useTransition()
-  const [keyword, setKeyword] = useState(monitor.keyword)
-  const [category, setCategory] = useState(monitor.category)
-  const [targetPrice, setTargetPrice] = useState(monitor.target_price?.toString() ?? '')
-  const [alertPrice, setAlertPrice] = useState(monitor.alert_price?.toString() ?? '')
-  const [minPrice, setMinPrice] = useState(monitor.min_price?.toString() ?? '')
-  const [maxPrice, setMaxPrice] = useState(monitor.max_price?.toString() ?? '')
-  const [excludedKeywords, setExcludedKeywords] = useState(monitor.excluded_keywords.join(', '))
+  const [keyword, setKeyword] = useState(initialData?.keyword ?? '')
+  const [category, setCategory] = useState(initialData?.category ?? '')
+  const [targetPrice, setTargetPrice] = useState(toStr(initialData?.target_price))
+  const [alertPrice, setAlertPrice] = useState(toStr(initialData?.alert_price))
+  const [minPrice, setMinPrice] = useState(toStr(initialData?.min_price))
+  const [maxPrice, setMaxPrice] = useState(toStr(initialData?.max_price))
+  const [excludedKeywords, setExcludedKeywords] = useState(
+    initialData?.excluded_keywords.join(', ') ?? ''
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function validate(): boolean {
@@ -41,40 +54,78 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: IE
     return Object.keys(next).length === 0
   }
 
+  function resetForm() {
+    setKeyword('')
+    setCategory('')
+    setTargetPrice('')
+    setAlertPrice('')
+    setMinPrice('')
+    setMaxPrice('')
+    setExcludedKeywords('')
+    setErrors({})
+  }
+
+  function handleClose(v: boolean) {
+    if (isPending) return
+    if (!v && mode === 'add') resetForm()
+    onOpenChange(v)
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
 
+    const excludedList = excludedKeywords
+      ? excludedKeywords.split(',').map((kw) => kw.trim()).filter(Boolean)
+      : []
+
     startTransition(async () => {
-      await updateMonitor(monitor.id, {
-        keyword: keyword.trim(),
-        category,
-        target_price: targetPrice ? Number(targetPrice) : null,
-        alert_price: alertPrice ? Number(alertPrice) : null,
-        min_price: minPrice ? Number(minPrice) : null,
-        max_price: maxPrice ? Number(maxPrice) : null,
-        excluded_keywords: excludedKeywords
-          ? excludedKeywords.split(',').map((kw) => kw.trim()).filter(Boolean)
-          : [],
-      })
+      if (mode === 'add') {
+        await createMonitor({
+          keyword: keyword.trim(),
+          category,
+          target_price: targetPrice ? Number(targetPrice) : undefined,
+          alert_price: alertPrice ? Number(alertPrice) : undefined,
+          min_price: minPrice ? Number(minPrice) : undefined,
+          max_price: maxPrice ? Number(maxPrice) : undefined,
+          excluded_keywords: excludedList,
+        })
+        resetForm()
+      } else if (initialData) {
+        await updateMonitor(initialData.id, {
+          keyword: keyword.trim(),
+          category,
+          target_price: targetPrice ? Number(targetPrice) : null,
+          alert_price: alertPrice ? Number(alertPrice) : null,
+          min_price: minPrice ? Number(minPrice) : null,
+          max_price: maxPrice ? Number(maxPrice) : null,
+          excluded_keywords: excludedList,
+        })
+      }
       onOpenChange(false)
-      onUpdated()
+      onDone()
     })
   }
 
+  const title = mode === 'add' ? '검색어 등록' : '검색어 수정'
+  const submitLabel = mode === 'add'
+    ? (isPending ? '등록 중...' : '등록')
+    : (isPending ? '저장 중...' : '저장')
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!isPending) onOpenChange(v) }}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>검색어 수정</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-keyword">검색어 *</Label>
+            <Label htmlFor="form-keyword">검색어 *</Label>
             <Input
-              id="edit-keyword"
+              id="form-keyword"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
+              placeholder="예) 롤렉스 서브마리너"
               aria-invalid={!!errors.keyword}
             />
             {errors.keyword && (
@@ -83,10 +134,10 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: IE
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-category">카테고리 *</Label>
+            <Label htmlFor="form-category">카테고리 *</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger id="edit-category" aria-invalid={!!errors.category}>
-                <SelectValue />
+              <SelectTrigger id="form-category" aria-invalid={!!errors.category}>
+                <SelectValue placeholder="카테고리 선택" />
               </SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map((cat) => (
@@ -101,22 +152,24 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: IE
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-target-price">적정가 (원)</Label>
+              <Label htmlFor="form-target-price">적정가 (원)</Label>
               <Input
-                id="edit-target-price"
+                id="form-target-price"
                 type="number"
                 value={targetPrice}
                 onChange={(e) => setTargetPrice(e.target.value)}
+                placeholder="예) 1500000"
                 min={0}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-alert-price">알림가 (원)</Label>
+              <Label htmlFor="form-alert-price">알림가 (원)</Label>
               <Input
-                id="edit-alert-price"
+                id="form-alert-price"
                 type="number"
                 value={alertPrice}
                 onChange={(e) => setAlertPrice(e.target.value)}
+                placeholder="예) 1200000"
                 min={0}
               />
             </div>
@@ -140,12 +193,17 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: IE
                 min={0}
               />
             </div>
+            {mode === 'add' && (
+              <p className="text-xs text-muted-foreground">
+                알림가 이하이면서 이 범위 안에 있을 때만 슬랙 알림 발송
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-excluded">제외 키워드 (쉼표로 구분)</Label>
+            <Label htmlFor="form-excluded">제외 키워드 (쉼표로 구분)</Label>
             <Input
-              id="edit-excluded"
+              id="form-excluded"
               value={excludedKeywords}
               onChange={(e) => setExcludedKeywords(e.target.value)}
               placeholder="예) 부품, 수리, 케이스"
@@ -156,13 +214,13 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: IE
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleClose(false)}
               disabled={isPending}
             >
               취소
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? '저장 중...' : '저장'}
+              {submitLabel}
             </Button>
           </div>
         </form>

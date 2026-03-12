@@ -24,21 +24,28 @@ export async function GET(request: Request) {
 
   const results = { crawled: 0, skipped: 0, errors: 0 }
 
-  for (const monitor of (monitors ?? []) as IMonitor[]) {
-    try {
-      const result = await crawlMonitor(monitor, 'all', force)
-      if (result.cached) {
+  const settled = await Promise.allSettled(
+    (monitors ?? []).map((m) => crawlMonitor(m as IMonitor, 'all', force))
+  )
+
+  const slackErrors: Promise<void>[] = []
+  settled.forEach((outcome, i) => {
+    const monitor = (monitors ?? [])[i] as IMonitor
+    if (outcome.status === 'fulfilled') {
+      if (outcome.value.cached) {
         results.skipped++
       } else {
         results.crawled++
       }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
+    } else {
+      const message = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason)
       console.error(`[cron] monitor ${monitor.id} failed:`, message)
-      await sendSlackError(monitor.keyword, message)
+      slackErrors.push(sendSlackError(monitor.keyword, message))
       results.errors++
     }
-  }
+  })
+
+  await Promise.allSettled(slackErrors)
 
   return NextResponse.json({ success: true, ...results })
 }

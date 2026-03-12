@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MonitorCard } from '@/components/dashboard/MonitorCard'
-import { AddMonitorDialog } from '@/components/dashboard/AddMonitorDialog'
-import { EditMonitorDialog } from '@/components/dashboard/EditMonitorDialog'
+import { MonitorFormDialog } from '@/components/dashboard/MonitorFormDialog'
 import type { IMonitor } from '@/types/database.types'
 
 interface IDashboardClientProps {
@@ -48,18 +47,20 @@ export function DashboardClient({ monitors }: IDashboardClientProps) {
         </div>
       )}
 
-      <AddMonitorDialog
+      <MonitorFormDialog
+        mode="add"
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
-        onCreated={handleCreated}
+        onDone={handleCreated}
       />
 
       {editTarget && (
-        <EditMonitorDialog
-          monitor={editTarget}
+        <MonitorFormDialog
+          mode="edit"
           open={!!editTarget}
           onOpenChange={(v) => { if (!v) setEditTarget(null) }}
-          onUpdated={handleUpdated}
+          onDone={handleUpdated}
+          initialData={editTarget}
         />
       )}
     </div>

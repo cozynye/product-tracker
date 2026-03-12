@@ -3,6 +3,7 @@ import { crawlJoonggonara } from './joonggonara'
 import { isCacheValid, applyExcludedKeywords } from './utils'
 import { upsertSnapshots, updateLastCrawledAt, deleteOldSnapshots } from '@/actions/snapshots'
 import { checkAndSendAlerts } from '@/lib/notifications/alert'
+import { sendSlackError } from '@/lib/notifications/slack'
 import type { IMonitor, ISnapshotInsert } from '@/types/database.types'
 
 export interface CrawlResult {
@@ -11,12 +12,18 @@ export interface CrawlResult {
   joonggnaraCount: number
 }
 
-async function safeCrawl(fn: () => Promise<ISnapshotInsert[]>): Promise<ISnapshotInsert[]> {
+interface SafeCrawlResult {
+  items: ISnapshotInsert[]
+  error?: string
+}
+
+async function safeCrawl(fn: () => Promise<ISnapshotInsert[]>): Promise<SafeCrawlResult> {
   try {
-    return await fn()
+    return { items: await fn() }
   } catch (e) {
-    console.error('[crawl] error:', e instanceof Error ? e.message : e)
-    return []
+    const error = e instanceof Error ? e.message : String(e)
+    console.error('[crawl] error:', error)
+    return { items: [], error }
   }
 }
 
@@ -29,18 +36,39 @@ export async function crawlMonitor(
     return { cached: true, bunjangCount: 0, joonggnaraCount: 0 }
   }
 
-  let bunjangRaw: ISnapshotInsert[] = []
-  let joonggonaraRaw: ISnapshotInsert[] = []
+  const bunjangResult: SafeCrawlResult = { items: [] }
+  const joonggonaraResult: SafeCrawlResult = { items: [] }
+
+  const crawlTasks: Promise<void>[] = []
 
   if (platform === 'bunjang' || platform === 'all') {
-    bunjangRaw = await safeCrawl(() => crawlBunjang(monitor.keyword, monitor.id))
+    crawlTasks.push(
+      safeCrawl(() => crawlBunjang(monitor.keyword, monitor.id)).then((r) => {
+        Object.assign(bunjangResult, r)
+      })
+    )
   }
   if (platform === 'joonggonara' || platform === 'all') {
-    joonggonaraRaw = await safeCrawl(() => crawlJoonggonara(monitor.keyword, monitor.id))
+    crawlTasks.push(
+      safeCrawl(() => crawlJoonggonara(monitor.keyword, monitor.id)).then((r) => {
+        Object.assign(joonggonaraResult, r)
+      })
+    )
   }
 
+  await Promise.all(crawlTasks)
+
+  const slackAlerts: Promise<void>[] = []
+  if (bunjangResult.error) {
+    slackAlerts.push(sendSlackError(`번개장터 (${monitor.keyword})`, bunjangResult.error))
+  }
+  if (joonggonaraResult.error) {
+    slackAlerts.push(sendSlackError(`중고나라 (${monitor.keyword})`, joonggonaraResult.error))
+  }
+  if (slackAlerts.length) await Promise.allSettled(slackAlerts)
+
   const filtered = applyExcludedKeywords(
-    [...bunjangRaw, ...joonggonaraRaw],
+    [...bunjangResult.items, ...joonggonaraResult.items],
     monitor.excluded_keywords,
   )
 
@@ -51,7 +79,7 @@ export async function crawlMonitor(
 
   return {
     cached: false,
-    bunjangCount: bunjangRaw.length,
-    joonggnaraCount: joonggonaraRaw.length,
+    bunjangCount: bunjangResult.items.length,
+    joonggnaraCount: joonggonaraResult.items.length,
   }
 }

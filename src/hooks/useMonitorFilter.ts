@@ -31,6 +31,12 @@ export interface IUseMonitorFilterReturn {
   setMaxPrice: (value: number | null) => void
 }
 
+function isInRange(price: number, min: number | null, max: number | null): boolean {
+  if (min != null && price < min) return false
+  if (max != null && price > max) return false
+  return true
+}
+
 function formatMMDD(dateStr: string): string {
   const d = new Date(dateStr)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -64,34 +70,25 @@ export function useMonitorFilter(
 
   // 판매중 평균가 (제외 키워드 + 알림가 범위 적용 후)
   const currentAvgPrice = useMemo(() => {
-    const forSale = validSnapshots.filter((s) => {
-      if (s.status !== '판매중') return false
-      const aboveAlertMin = alertMinPrice == null || s.price >= alertMinPrice
-      const belowAlertMax = alertMaxPrice == null || s.price <= alertMaxPrice
-      return aboveAlertMin && belowAlertMax
-    })
+    const forSale = validSnapshots.filter(
+      (s) => s.status === '판매중' && isInRange(s.price, alertMinPrice, alertMaxPrice)
+    )
     if (!forSale.length) return null
     return Math.round(forSale.reduce((sum, s) => sum + s.price, 0) / forSale.length)
   }, [validSnapshots, alertMinPrice, alertMaxPrice])
 
   const hotDeals = useMemo<ISnapshot[]>(() => {
     if (targetPrice === null) return []
-    return validSnapshots.filter((s) => {
-      if (s.status !== '판매중' || s.price > targetPrice) return false
-      const aboveAlertMin = alertMinPrice == null || s.price >= alertMinPrice
-      const belowAlertMax = alertMaxPrice == null || s.price <= alertMaxPrice
-      return aboveAlertMin && belowAlertMax
-    })
+    return validSnapshots.filter(
+      (s) => s.status === '판매중' && s.price <= targetPrice && isInRange(s.price, alertMinPrice, alertMaxPrice)
+    )
   }, [validSnapshots, targetPrice, alertMinPrice, alertMaxPrice])
 
   const chartData = useMemo<IChartDataPoint[]>(() => {
     const cutoff = Date.now() - chartRange * 24 * 60 * 60 * 1000
-    const recent = validSnapshots.filter((s) => {
-      if (new Date(s.posted_at).getTime() < cutoff) return false
-      const aboveAlertMin = alertMinPrice == null || s.price >= alertMinPrice
-      const belowAlertMax = alertMaxPrice == null || s.price <= alertMaxPrice
-      return aboveAlertMin && belowAlertMax
-    })
+    const recent = validSnapshots.filter(
+      (s) => new Date(s.posted_at).getTime() >= cutoff && isInRange(s.price, alertMinPrice, alertMaxPrice)
+    )
 
     const grouped = recent.reduce<Record<string, number[]>>((acc, s) => {
       const key = formatMMDD(s.posted_at)
@@ -116,9 +113,7 @@ export function useMonitorFilter(
       const matchStatus = status === 'all' || s.status === status
       const matchMin = minPrice == null || s.price >= minPrice
       const matchMax = maxPrice == null || s.price <= maxPrice
-      const aboveAlertMin = alertMinPrice == null || s.price >= alertMinPrice
-      const belowAlertMax = alertMaxPrice == null || s.price <= alertMaxPrice
-      return matchPlatform && matchStatus && matchMin && matchMax && aboveAlertMin && belowAlertMax
+      return matchPlatform && matchStatus && matchMin && matchMax && isInRange(s.price, alertMinPrice, alertMaxPrice)
     })
   }, [validSnapshots, platform, status, minPrice, maxPrice, alertMinPrice, alertMaxPrice])
 

@@ -1,12 +1,7 @@
 import { ExternalLink, Flame } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { PLATFORM_LABEL } from '@/lib/constants'
 import type { ISnapshot } from '@/types/database.types'
-
-const PLATFORM_LABEL: Record<ISnapshot['platform'], string> = {
-  bunjang: '번개장터',
-  joonggonara: '중고나라',
-  manual: '직접입력',
-}
 
 interface IHotDealListProps {
   deals: ISnapshot[]

@@ -1,10 +1,7 @@
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
+import { PLATFORM_LABEL } from '@/lib/constants'
+import type { ISnapshot } from '@/types/database.types'
 
-const PLATFORM_LABEL: Record<string, string> = {
-  bunjang: '번개장터',
-  joonggonara: '중고나라',
-  manual: '수동입력',
-}
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
 
 export interface ISlackAlertItem {
   keyword: string
@@ -25,7 +22,7 @@ export async function sendSlackAlert(items: ISlackAlertItem[]): Promise<void> {
     `🔔 *[${items[0].keyword}] 알림가 이하 매물 ${items.length}건*`,
     '',
     ...items.map((item) =>
-      `• *${item.title}*\n  └ ${item.price.toLocaleString()}원 (알림가: ${item.alertPrice.toLocaleString()}원) | ${PLATFORM_LABEL[item.platform] ?? item.platform}\n  └ ${item.url}`
+      `• *${item.title}*\n  └ ${item.price.toLocaleString()}원 (알림가: ${item.alertPrice.toLocaleString()}원) | ${PLATFORM_LABEL[item.platform as ISnapshot['platform']] ?? item.platform}\n  └ ${item.url}`
     ),
   ].join('\n')
 
